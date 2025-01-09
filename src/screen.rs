@@ -26,7 +26,7 @@ pub enum ScreenCommand {
 }
 
 pub struct Screen {
-	port: Box<dyn SerialPort>
+	port: Box<dyn SerialPort>,
 }
 
 impl Screen {
@@ -62,7 +62,14 @@ impl Screen {
 }
 
 impl Screen {
-	fn send_command(&mut self, x: u16, y: u16, ex: u16, ey: u16, cmd: ScreenCommand) -> Result<(), crate::errors::ScreenError> {
+	fn send_command(
+		&mut self,
+		x: u16,
+		y: u16,
+		ex: u16,
+		ey: u16,
+		cmd: ScreenCommand,
+	) -> Result<(), crate::errors::ScreenError> {
 		let mut byte_buffer = [0u8; 6];
 		byte_buffer[0] = (x >> 2) as u8;
 		byte_buffer[1] = (((x & 3) << 6) + (y >> 4)) as u8;
@@ -71,17 +78,36 @@ impl Screen {
 		byte_buffer[4] = (ey & 255) as u8;
 		byte_buffer[5] = cmd as u8;
 
-		self.port.write(&byte_buffer).map_err(|_| crate::errors::ScreenError::WriteError)?;
+		self.port
+			.write(&byte_buffer)
+			.map_err(|_| crate::errors::ScreenError::WriteError)?;
 
 		Ok(())
 	}
 
 	/// Sets the screens orientation
 	#[allow(unused)]
-	pub fn orientation(&mut self, orientation: Orientation) -> Result<(), crate::errors::ScreenError> {
-		let bytes = vec![0, 0, 0, 0, 0, ScreenCommand::SetOrientation as u8, (orientation as u8) + 100, 3, 200, 4, 0];
+	pub fn orientation(
+		&mut self,
+		orientation: Orientation,
+	) -> Result<(), crate::errors::ScreenError> {
+		let bytes = vec![
+			0,
+			0,
+			0,
+			0,
+			0,
+			ScreenCommand::SetOrientation as u8,
+			(orientation as u8) + 100,
+			3,
+			200,
+			4,
+			0,
+		];
 
-		self.port.write(&bytes).map_err(|_| crate::errors::ScreenError::WriteError)?;
+		self.port
+			.write(&bytes)
+			.map_err(|_| crate::errors::ScreenError::WriteError)?;
 
 		Ok(())
 	}
@@ -139,8 +165,13 @@ impl Screen {
 	/// Draws an `ImageBuffer` to the screen.
 	/// The image must be 320x480 or 480x320. Although not checked, the orientation of the image should match the orientation of the screen.
 	/// Otherwise the screen will still interpret the image as if it were in the wrong orientation, part of the image may be cut off and the screen will wrap around to the start in rendering.
-	pub fn draw(&mut self, img: ImageBuffer<image::Rgb<u8>, Vec<u8>>) -> Result<(), crate::errors::ScreenError> {
-		if !((img.width() == WIDTH.into() || img.height() == HEIGHT.into()) || (img.width() == HEIGHT.into() || img.height() == WIDTH.into())) {
+	pub fn draw(
+		&mut self,
+		img: ImageBuffer<image::Rgb<u8>, Vec<u8>>,
+	) -> Result<(), crate::errors::ScreenError> {
+		if !((img.width() == WIDTH.into() || img.height() == HEIGHT.into())
+			|| (img.width() == HEIGHT.into() || img.height() == WIDTH.into()))
+		{
 			// panic!("Canvas size must be 320x480 or 480x320");
 			return Err(crate::errors::ScreenError::WrongImageSize);
 		}
@@ -149,7 +180,13 @@ impl Screen {
 		let height = img.height();
 
 		// Set the display region
-		self.send_command(0, 0, (width - 1) as u16, (height - 1) as u16, ScreenCommand::DisplayBitmap)?;
+		self.send_command(
+			0,
+			0,
+			(width - 1) as u16,
+			(height - 1) as u16,
+			ScreenCommand::DisplayBitmap,
+		)?;
 
 		let pixels: Vec<_> = img.pixels().collect();
 		let width = width as usize;
@@ -164,7 +201,9 @@ impl Screen {
 				bytes.push((rgb565 & 0xFF) as u8); // LSB
 				bytes.push((rgb565 >> 8) as u8); // MSB
 			}
-			self.port.write(&bytes).map_err(|_| crate::errors::ScreenError::WriteError)?;
+			self.port
+				.write(&bytes)
+				.map_err(|_| crate::errors::ScreenError::WriteError)?;
 		}
 
 		// Write the remaining pixels if any
@@ -179,7 +218,9 @@ impl Screen {
 				bytes.push((rgb565 & 0xFF) as u8); // LSB
 				bytes.push((rgb565 >> 8) as u8); // MSB
 			}
-			self.port.write(&bytes).map_err(|_| crate::errors::ScreenError::WriteError)?;
+			self.port
+				.write(&bytes)
+				.map_err(|_| crate::errors::ScreenError::WriteError)?;
 		}
 
 		Ok(())
